@@ -3,4 +3,7 @@
 
     <string name="start">启动服务</string>
     <string name="stop">停止服务</string>
+
+    <string name="test_packet">测试分包收发</string>
+    <string name="test_connect">测试安全连接</string>
 </resources>

@@ -3,17 +3,14 @@ package com.inuker.ble.testgattclient;
 import android.app.Application;
 import android.content.Context;
 
-public class MyApplication extends Application {
+import com.inuker.ble.library.utils.ContextUtils;
 
-    public static Context mContext;
+public class MyApplication extends Application {
 
     @Override
     public void onCreate() {
         super.onCreate();
-        mContext = this;
+        ContextUtils.setContext(this);
     }
 
-    public static Context getContext() {
-        return mContext;
-    }
 }

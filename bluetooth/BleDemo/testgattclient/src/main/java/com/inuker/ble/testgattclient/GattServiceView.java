@@ -27,18 +27,9 @@ public class GattServiceView {
     private LinearLayout mRoot;
 
     private PopupWindow mWindow;
-    private GattCaller mGattCaller;
 
-    public GattServiceView(LinearLayout root, GattCaller caller) {
+    public GattServiceView(LinearLayout root) {
         mRoot = root;
-        mGattCaller = caller;
-    }
-
-    public interface GattCaller {
-        void read(BluetoothGattCharacteristic characteristic);
-        void write(BluetoothGattCharacteristic characteristic, byte[] value);
-        void notify(BluetoothGattCharacteristic characteristic);
-        void unnotify(BluetoothGattCharacteristic characteristic);
     }
 
     public void refreshView(final BluetoothGatt gatt) {
@@ -52,6 +43,7 @@ public class GattServiceView {
 
     private void innerRefreshView(BluetoothGatt gatt) {
         Context context = mRoot.getContext();
+        mRoot.removeAllViews();
         for (BluetoothGattService service : gatt.getServices()) {
             mRoot.addView(getServiceTextView(context, service));
             for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
@@ -115,7 +107,7 @@ public class GattServiceView {
 
             @Override
             public void onClick(View v) {
-                mGattCaller.read(characteristic);
+//                mGattCaller.read(characteristic);
             }
         });
 
@@ -125,7 +117,7 @@ public class GattServiceView {
             @Override
             public void onClick(View v) {
                 byte[] value = ByteUtils.stringToBytes("1234");
-                mGattCaller.write(characteristic, value);
+//                mGattCaller.write(characteristic, value);
             }
         });
 
@@ -134,7 +126,7 @@ public class GattServiceView {
 
             @Override
             public void onClick(View v) {
-                mGattCaller.notify(characteristic);
+//                mGattCaller.notify(characteristic);
             }
         });
 
@@ -143,7 +135,7 @@ public class GattServiceView {
 
             @Override
             public void onClick(View v) {
-                mGattCaller.unnotify(characteristic);
+//                mGattCaller.unnotify(characteristic);
             }
         });
     }

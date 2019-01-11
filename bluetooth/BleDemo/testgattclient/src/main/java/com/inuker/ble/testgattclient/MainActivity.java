@@ -41,6 +41,8 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
     private boolean mScaning;
 
+    private static final int REQUEST_OPEN_BLUETOOTH = 1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -62,8 +64,11 @@ public class MainActivity extends Activity implements View.OnClickListener {
                     || (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
                         Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
+                return;
             }
         }
+
+        checkBluetooth();
     }
 
     private String byteToString(byte[] bytes) {
@@ -87,9 +92,8 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 mScanResults.put(device.getAddress(), result);
                 Log.v(TAG, String.format("onLeScan: mac = %s, name = %s, record = (%s)%d",
                         device.getAddress(), device.getName(), byteToString(scanRecord), scanRecord.length));
+                mAdapter.refresh(mScanResults);
             }
-
-            mAdapter.refresh(mScanResults);
         }
     };
 
@@ -102,7 +106,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
         }
 
         if (!adapter.isEnabled()) {
-            Toast.makeText(this, "Bluetooth not enabled", Toast.LENGTH_SHORT).show();
+            checkBluetooth();
             return;
         }
 
@@ -238,7 +242,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
                 @Override
                 public void onClick(View v) {
-                    Intent intent = new Intent(MainActivity.this, TestActivity.class);
+                    Intent intent = new Intent(MainActivity.this, DeviceActivity.class);
                     intent.putExtra("device", result.device);
                     startActivity(intent);
                 }
@@ -263,6 +267,22 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
         if (!grantedLocation) {
             Toast.makeText(this, "Permission error !!!", Toast.LENGTH_SHORT).show();
+            finish();
+        } else {
+            checkBluetooth();
+        }
+    }
+
+    private void checkBluetooth() {
+        if (!BluetoothUtils.isBluetoothOpen()) {
+            BluetoothUtils.openBluetooth(this, REQUEST_OPEN_BLUETOOTH);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_OPEN_BLUETOOTH && resultCode != RESULT_OK) {
             finish();
         }
     }

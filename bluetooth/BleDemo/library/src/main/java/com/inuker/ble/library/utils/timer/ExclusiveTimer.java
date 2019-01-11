@@ -6,6 +6,7 @@ import android.os.Looper;
 import com.inuker.ble.library.proxy.ProxyInterceptor;
 import com.inuker.ble.library.proxy.ProxyUtils;
 import com.inuker.ble.library.utils.ContextUtils;
+import com.inuker.ble.library.utils.LogUtils;
 
 import java.lang.reflect.Method;
 

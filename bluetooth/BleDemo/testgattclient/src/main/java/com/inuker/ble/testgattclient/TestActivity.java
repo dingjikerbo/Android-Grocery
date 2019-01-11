@@ -18,7 +18,7 @@ import com.inuker.ble.library.utils.ByteUtils;
 import com.inuker.ble.library.utils.UUIDUtils;
 import com.inuker.ble.library.utils.BluetoothUtils;
 
-public class TestActivity extends Activity implements GattServiceView.GattCaller {
+public class TestActivity extends Activity {
 
     private static final String TAG = "bush";
 
@@ -213,29 +213,4 @@ public class TestActivity extends Activity implements GattServiceView.GattCaller
         super.onDestroy();
     }
 
-    @Override
-    public void read(BluetoothGattCharacteristic characteristic) {
-        mBluetoothGatt.readCharacteristic(characteristic);
-    }
-
-    @Override
-    public void write(BluetoothGattCharacteristic characteristic, byte[] value) {
-        characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-        characteristic.setValue(value);
-        mBluetoothGatt.writeCharacteristic(characteristic);
-    }
-
-    @Override
-    public void notify(BluetoothGattCharacteristic characteristic) {
-        if (!BluetoothUtils.setCharacteristicNotification(mBluetoothGatt, characteristic.getService().getUuid(), characteristic.getUuid(), true)) {
-            onNotifyCompleted(false);
-        }
-    }
-
-    @Override
-    public void unnotify(BluetoothGattCharacteristic characteristic) {
-        if (!BluetoothUtils.setCharacteristicNotification(mBluetoothGatt, characteristic.getService().getUuid(), characteristic.getUuid(), false)) {
-            onUnnotifyCompleted(false);
-        }
-    }
 }

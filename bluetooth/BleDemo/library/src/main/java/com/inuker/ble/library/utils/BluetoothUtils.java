@@ -1,5 +1,6 @@
 package com.inuker.ble.library.utils;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -12,6 +13,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Context;
+import android.content.Intent;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +22,23 @@ public class BluetoothUtils {
 
     public static int getBluetoothConnectionState(BluetoothDevice device) {
         return getBluetoothManager().getConnectionState(device, BluetoothProfile.GATT);
+    }
+
+    public static boolean isConnected(BluetoothDevice device) {
+        return getBluetoothConnectionState(device) == BluetoothGatt.STATE_CONNECTED;
+    }
+
+    public static boolean isBluetoothOpen() {
+        return getBluetoothAdapter().isEnabled();
+    }
+
+    public static void openBluetooth() {
+        getBluetoothAdapter().enable();
+    }
+
+    public static void openBluetooth(Activity activity, int code) {
+        Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+        activity.startActivityForResult(intent, code);
     }
 
     public static int getBluetoothConnectionState(String mac) {

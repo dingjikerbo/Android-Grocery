@@ -25,4 +25,9 @@ public interface IChannel {
 	 * 上层发数据
 	 */
 	void send(byte[] value, ChannelCallback callback);
+
+	/**
+	 * 释放资源
+	 */
+	void close();
 }

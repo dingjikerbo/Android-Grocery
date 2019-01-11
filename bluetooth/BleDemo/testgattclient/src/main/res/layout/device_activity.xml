@@ -12,10 +12,25 @@
         android:text="@string/start_connect"
         android:gravity="center"/>
 
-    <LinearLayout
-        android:id="@+id/container"
+    <Button
+        android:id="@+id/test_packet"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"/>
+        android:layout_height="45dp"
+        android:text="@string/test_packet"
+        android:enabled="false"/>
+
+    <ScrollView
+        android:id="@+id/scrollview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:id="@+id/result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"/>
+
+    </ScrollView>
+
 
 </LinearLayout>

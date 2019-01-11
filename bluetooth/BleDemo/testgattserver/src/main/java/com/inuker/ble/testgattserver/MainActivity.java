@@ -2,52 +2,45 @@ package com.inuker.ble.testgattserver;
 
 import android.Manifest;
 import android.app.Activity;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattServer;
-import android.bluetooth.BluetoothGattServerCallback;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.le.AdvertiseCallback;
-import android.bluetooth.le.AdvertiseData;
-import android.bluetooth.le.AdvertiseSettings;
-import android.bluetooth.le.BluetoothLeAdvertiser;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import com.inuker.ble.library.utils.ByteUtils;
+import com.inuker.ble.library.utils.BluetoothUtils;
 
 public class MainActivity extends Activity {
 
-    private static final String TAG = "bush";
-
+    private static final int REQUEST_OPEN_BLUETOOTH = 1;
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
 
-
-    private Button mButton;
-    private BluetoothLeAdvertiser mAdvertiser;
-    private BluetoothGattServer mGattServer;
-
-    private boolean mServerRunning;
+    private Button mBtnPacket;
+    private Button mBtnConnect;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mButton = findViewById(R.id.btn);
+        mBtnPacket = findViewById(R.id.packet);
+        mBtnConnect = findViewById(R.id.connect);
 
-        mButton.setOnClickListener(new View.OnClickListener() {
+        mBtnPacket.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
-                processClicked();
+                testPacket();
+            }
+        });
+
+        mBtnConnect.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                testConnect();
             }
         });
 
@@ -55,118 +48,21 @@ public class MainActivity extends Activity {
             if ((checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
                     || (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
+                return;
             }
         }
+
+        checkBluetooth();
     }
 
-    private void processClicked() {
-        if (mServerRunning) {
-            stopAdvertising();
-            stopGattServer();
-            mButton.setText(R.string.start);
-        } else {
-            startAdvertising();
-            startGattServer();
-            mButton.setText(R.string.stop);
-        }
-        mServerRunning = !mServerRunning;
+    private void testPacket() {
+        Intent intent = new Intent(this, TestPacketActivity.class);
+        startActivity(intent);
     }
 
-    private void startAdvertising() {
-        if (mAdvertiser != null) {
-            throw new IllegalStateException();
-        }
-        mAdvertiser = GattServerHelper.createAdvertiser();
-        AdvertiseSettings settings = GattServerHelper.getDefaultAdvertiseSettings();
-        AdvertiseData data = GattServerHelper.getDefaultAdvertiseData();
-        mAdvertiser.startAdvertising(settings, data, mAdvertiseCallback);
-    }
-
-    private void stopAdvertising() {
-        if (mAdvertiser == null) {
-            throw new IllegalStateException();
-        }
-        mAdvertiser.stopAdvertising(mAdvertiseCallback);
-        mAdvertiser = null;
-    }
-
-    private final AdvertiseCallback mAdvertiseCallback = new AdvertiseCallback() {
-        @Override
-        public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-            Log.v(TAG, String.format("onStartSuccess: %s", Thread.currentThread().getName()));
-        }
-
-        @Override
-        public void onStartFailure(int errorCode) {
-            Log.v(TAG, String.format("onStartFailure %d: %s", errorCode, Thread.currentThread().getName()));
-        }
-    };
-
-    private void startGattServer() {
-        if (mGattServer != null) {
-            throw new IllegalStateException();
-        }
-        mGattServer = GattServerHelper.createGattServer(new BluetoothGattServerCallback() {
-            @Override
-            public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
-                super.onConnectionStateChange(device, status, newState);
-                Log.v(TAG, String.format("onConnectionStateChange device = %s, status = %d, newState = %d", device.getAddress(), status, newState));
-            }
-
-            @Override
-            public void onServiceAdded(int status, BluetoothGattService service) {
-                super.onServiceAdded(status, service);
-                Log.v(TAG, String.format("onServiceAdded status = %d, service = %s", status, service.getUuid()));
-            }
-
-            @Override
-            public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
-                super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
-                Log.v(TAG, String.format("onCharacteristicReadRequest device = %s, service = %s, character = %s, requestId = %d, ", device.getAddress(), characteristic.getService().getUuid(),
-                        characteristic.getUuid(), requestId));
-
-                mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, ByteUtils.stringToBytes("1234"));
-            }
-
-            @Override
-            public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-                super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
-                Log.v(TAG, String.format("onCharacteristicWriteRequest device = %s, service = %s, character = %s, value = %s", device.getAddress(), characteristic.getService().getUuid(),
-                        characteristic.getUuid(), ByteUtils.byteToString(value)));
-            }
-
-            @Override
-            public void onDescriptorWriteRequest(BluetoothDevice device, int requestId, BluetoothGattDescriptor descriptor, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-                super.onDescriptorWriteRequest(device, requestId, descriptor, preparedWrite, responseNeeded, offset, value);
-                Log.v(TAG, String.format("onDescriptorWriteRequest device = %s, service = %s, character = %s, descriptor = %s, value = %s", device.getAddress(),
-                        descriptor.getCharacteristic().getService().getUuid(),
-                        descriptor.getCharacteristic().getUuid(),
-                        descriptor.getUuid(),
-                        ByteUtils.byteToString(value)));
-            }
-
-            @Override
-            public void onNotificationSent(BluetoothDevice device, int status) {
-                super.onNotificationSent(device, status);
-                Log.v(TAG, String.format("onNotificationSent device = %s, status = %d", device.getAddress(), status));
-            }
-
-            @Override
-            public void onMtuChanged(BluetoothDevice device, int mtu) {
-                super.onMtuChanged(device, mtu);
-                Log.v(TAG, String.format("onMtuChanged device = %s, mtu = %d", device.getAddress(), mtu));
-            }
-        });
-        BluetoothGattService service = GattServerHelper.createGattService();
-        mGattServer.addService(service);
-    }
-
-    private void stopGattServer() {
-        if (mGattServer == null) {
-            throw new IllegalStateException();
-        }
-        mGattServer.close();
-        mGattServer = null;
+    private void testConnect() {
+        Intent intent = new Intent(this, TestConnectActivity.class);
+        startActivity(intent);
     }
 
     @Override
@@ -185,6 +81,25 @@ public class MainActivity extends Activity {
         if (!grantedLocation) {
             Toast.makeText(this, "Permission error !!!", Toast.LENGTH_SHORT).show();
             finish();
+            return;
+        }
+
+        checkBluetooth();
+    }
+
+    private void checkBluetooth() {
+        if (!BluetoothUtils.isBluetoothOpen()) {
+            BluetoothUtils.openBluetooth(this, REQUEST_OPEN_BLUETOOTH);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_OPEN_BLUETOOTH) {
+            if (resultCode != RESULT_OK) {
+                finish();
+            }
         }
     }
 }

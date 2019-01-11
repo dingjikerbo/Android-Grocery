@@ -33,7 +33,6 @@ public abstract class Channel implements IChannel {
 
 	private static final int TIMEOUT = 5000;
 	private static final int MSG_WRITE_CALLBACK = 1;
-	private static final String TIMER_EXCEPTION = "exception";
 
 	private ChannelState mCurrentState = ChannelState.IDLE;
 
@@ -89,6 +88,11 @@ public abstract class Channel implements IChannel {
 	@Override
 	public final void send(byte[] value, ChannelCallback callback) {
 		mChannel.send(value, callback);
+	}
+
+	@Override
+	public final void close() {
+		mChannel.close();
 	}
 
 	private final IChannelStateHandler mSyncPacketHandler = new IChannelStateHandler() {
@@ -576,7 +580,18 @@ public abstract class Channel implements IChannel {
 		public void send(byte[] value, ChannelCallback callback) {
 			performSend(value, callback);
 		}
+
+		@Override
+		public void close() {
+			performClose();
+		}
 	};
+
+	private void performClose() {
+		LogUtils.w(String.format("%s", getLogTag()));
+		resetChannelStatus();
+		mWorkerHandler.getLooper().quit();
+	}
 
 	private void performSend(byte[] value, ChannelCallback callback) {
 		assertRuntime(false);
@@ -585,6 +600,8 @@ public abstract class Channel implements IChannel {
 			callback.onCallback(Code.BUSY);
 			return;
 		}
+
+		LogUtils.w(String.format("%s: (%s)", getLogTag(), new String(value)));
 
 		mCurrentState = ChannelState.READY;
 		mChannelCallback = ProxyUtils.getUIProxy(callback);
