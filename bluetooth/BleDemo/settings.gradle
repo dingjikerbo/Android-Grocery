@@ -1,1 +1,1 @@
-include ':app', ':testgattserver', ':testgattclient', ':library'
+include ':app', ':testgattserver', ':testgattclient', ':library', ':testpacket'

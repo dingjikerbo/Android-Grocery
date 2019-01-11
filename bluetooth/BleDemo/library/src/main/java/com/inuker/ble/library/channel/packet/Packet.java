@@ -8,6 +8,8 @@ import java.nio.ByteBuffer;
 
 /**
  * 包分流控包和数据包，流控包又包括指令包和ACK包
+ * 每个包的头两个字节是sn，如果sn=0，则表示流控包，否则表示数据包
+ * 如果是流控包，则sn后面紧跟一个字节是type，如果type是0表示指令宝，type是1表示ack包。type后面紧跟一个字节表示cmd，cmd后面紧跟一个int表示parameter。
  */
 public abstract class Packet {
 

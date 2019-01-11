@@ -3,7 +3,6 @@ package com.inuker.ble.library.channel;
 /**
  * Created by dingjikerbo on 17/4/14.
  */
-
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -20,22 +19,25 @@ import com.inuker.ble.library.proxy.ProxyInterceptor;
 import com.inuker.ble.library.proxy.ProxyUtils;
 import com.inuker.ble.library.utils.ByteUtils;
 import com.inuker.ble.library.utils.LogUtils;
+import com.inuker.ble.library.utils.timer.ExclusiveTimer;
+import com.inuker.ble.library.utils.timer.TimerCallback;
 
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.concurrent.TimeoutException;
 
 /**
  * 要保证所有操作都在同一个线程
  */
-public abstract class Channel implements IChannel, ProxyInterceptor {
+public abstract class Channel implements IChannel {
 
-	private static final long TIMEOUT = 5000;
+	private static final int TIMEOUT = 5000;
 	private static final int MSG_WRITE_CALLBACK = 1;
 	private static final String TIMER_EXCEPTION = "exception";
 
 	private ChannelState mCurrentState = ChannelState.IDLE;
+
+	private String mName;
 
 	private byte[] mBytesToWrite;
 
@@ -63,15 +65,20 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 
 	private int mLastSync;
 
-	public Channel() {
+	private ExclusiveTimer mTimer;
+
+	public Channel(String name) {
+	    mName = name;
+
 		mPacketRecv = new SparseArray<>();
 
-		mChannel = ProxyUtils.getProxy(mChannelImpl, this);
+		mChannel = ProxyUtils.getProxy(mChannelImpl, mInterceptor);
 
 		HandlerThread thread = new HandlerThread(getClass().getSimpleName());
 		thread.start();
 
 		mWorkerHandler = new Handler(thread.getLooper(), mCallback);
+		mTimer = new ExclusiveTimer();
 	}
 
 	@Override
@@ -128,7 +135,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 				// 如果最后一帧收到了，说明对端发送完毕了
 				startSyncPacket();
 			} else {
-				startTimer(TIMEOUT, new Timer.TimerCallback("WaitData") {
+				startTimer(TIMEOUT, "Wait for data packet", new TimerCallback() {
 					@Override
 					public void onTimerCallback() {
 						startSyncPacket();
@@ -158,7 +165,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 					assertRuntime(false);
 					if (code == Code.SUCCESS) {
 						setCurrentState(ChannelState.READING);
-						startTimer();
+						startTimer("Wait for first data packet");
 					} else {
 						resetChannelStatus();
 					}
@@ -172,11 +179,11 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 		public void handleState(Object... args) {
 			assertRuntime(false);
 			setCurrentState(ChannelState.WAIT_START_ACK);
-			startTimer();
+			startTimer("Wait for start ack");
 		}
 	};
 
-	private final Timer.TimerCallback mTimeoutHandler = new Timer.TimerCallback(getClass().getSimpleName()) {
+	private final TimerCallback mTimeoutHandler = new TimerCallback() {
 
 		@Override
 		public void onTimerCallback() {
@@ -207,7 +214,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 					int index = ackPacket.getSeq();
 					if (index >= 1 && index <= mFrameCount) {
 						sendDataPacket(index - 1, false);
-						startTimer();
+						startTimer("Wait for next sync ack");
 					}
 					break;
 
@@ -243,10 +250,9 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 			throw new NullPointerException("callback can't be null");
 		}
 
-		// 此处为防止底层写没回调，故抛异常提示
-		if (!isTimerOn()) {
-			startExceptionTimer();
-		}
+		// 此处为防止底层写没回调，故抛异常提示，只是为了方便调试，没实际用处
+		// 这里假设底层的写是一定有回调的，因为底层写超时也应该有回调
+        startTimer("Wait for write operation");
 
 		final byte[] bytes = packet.toBytes();
 		LogUtils.w(String.format("%s: %s", getLogTag(), packet));
@@ -270,10 +276,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 
 		@Override
 		public void onCallback(int code) {
-			if (isExceptionTimerOn()) {
-				stopTimer();
-			}
-
+            stopTimer();
 			mWorkerHandler.obtainMessage(MSG_WRITE_CALLBACK, code, 0, callback).sendToTarget();
 		}
 	}
@@ -336,7 +339,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 
 		LogUtils.v(getLogTag());
 
-		startTimer();
+		startTimer("Wait for sync packet");
 		setCurrentState(ChannelState.SYNC);
 
 		if (!syncLostPacket()) {
@@ -366,7 +369,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 	}
 
 	private void dispatchOnReceive(final byte[] bytes) {
-		LogUtils.e(String.format(">>> receive: %s", new String(bytes)));
+		LogUtils.e(String.format("%s.onReceive: %s", mName, new String(bytes)));
 		ContextUtils.post(new RecvCallback(bytes));
 	}
 
@@ -434,7 +437,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 					assertRuntime(false);
 					if (code == Code.SUCCESS) {
 						setCurrentState(ChannelState.SYNC_ACK);
-						startTimer();
+						startTimer("Wait for sync data coming");
 					} else {
 						resetChannelStatus();
 					}
@@ -465,7 +468,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 
 	/**
 	 * @param index  包的索引，从0开始
-	 * @param looped 是否要循环发送下一个包
+	 * @param looped 是否要循环发送下一个包，在sync阶段是不用loop的
 	 */
 	private void sendDataPacket(final int index, final boolean looped) {
 		assertRuntime(false);
@@ -473,7 +476,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 		if (index >= mFrameCount) {
 			LogUtils.v(String.format("%s: all packets sended!!", getLogTag()));
 			setCurrentState(ChannelState.SYNC);
-			startTimer(TIMEOUT * 3);
+			startTimer(TIMEOUT * 3, "Wait for sync ack");
 			return;
 		}
 
@@ -561,7 +564,7 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 
 		@Override
 		public void onRead(byte[] bytes) {
-			performOnRead(bytes);
+			performOnRead(Arrays.copyOf(bytes, bytes.length));
 		}
 
 		@Override
@@ -599,11 +602,13 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 		sendStartFlowPacket();
 	}
 
-	@Override
-	public boolean onIntercept(Object object, Method method, Object[] args) {
-		mWorkerHandler.obtainMessage(0, new ProxyBulk(object, method, args)).sendToTarget();
-		return true;
-	}
+	private final ProxyInterceptor mInterceptor = new ProxyInterceptor() {
+		@Override
+		public boolean onIntercept(Object object, Method method, Object[] args) {
+			mWorkerHandler.obtainMessage(0, new ProxyBulk(object, method, args)).sendToTarget();
+			return true;
+		}
+	};
 
 	private final Handler.Callback mCallback = new Handler.Callback() {
 
@@ -625,53 +630,34 @@ public abstract class Channel implements IChannel, ProxyInterceptor {
 	};
 
 	private String getLogTag() {
-		return String.format("%s.%s", getClass().getSimpleName(),
+		return String.format("%s.%s", mName,
 				ContextUtils.getCurrentMethodName());
 	}
 
 	/**
 	 * 末尾追加两个字节的crc，每包发18个字节
-	 *
 	 * @return 分包数
 	 */
 	private int getFrameCount(int totalBytes) {
 		int total = totalBytes + 2;
-		return 1 + (total - 1) / 18;
+		return (int) Math.ceil(total / 18.0);
 	}
 
-	private void startTimer() {
-		startTimer(TIMEOUT);
+	private void startTimer(String name) {
+		startTimer(TIMEOUT, name);
 	}
 
-	private void startExceptionTimer() {
-		startTimer(TIMEOUT, new Timer.TimerCallback(TIMER_EXCEPTION) {
-			@Override
-			public void onTimerCallback() throws TimeoutException {
-				throw new TimeoutException();
-			}
-		});
+	private void startTimer(int duration, String name) {
+		startTimer(duration, name, mTimeoutHandler);
 	}
 
-	private void startTimer(long duration) {
-		startTimer(duration, mTimeoutHandler);
-	}
-
-	private void startTimer(long duration, Timer.TimerCallback callback) {
-		LogUtils.v(String.format("%s: duration = %d", getLogTag(), duration));
-		Timer.start(callback, duration);
+	private void startTimer(int duration, String name, TimerCallback callback) {
+		assertRuntime(false);
+		mTimer.start(duration, String.format("%s.%s", mName, name), callback);
 	}
 
 	private void stopTimer() {
-		LogUtils.v(getLogTag());
-		Timer.stop();
-	}
-
-	private boolean isTimerOn() {
-		return Timer.isRunning();
-	}
-
-	private boolean isExceptionTimerOn() {
-		return TIMER_EXCEPTION.equals(Timer.getName());
+		mTimer.stop();
 	}
 
 	private boolean checkCRC(byte[] bytes, byte[] crc0) {

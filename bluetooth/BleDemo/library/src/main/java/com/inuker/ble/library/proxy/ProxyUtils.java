@@ -40,6 +40,10 @@ public class ProxyUtils {
         return (T) getUIProxy(object, new Class<?>[] { clazz }, interceptor);
     }
 
+    public static <T> T getUIProxy(Object object, ProxyInterceptor interceptor) {
+        return (T) getUIProxy(object, object.getClass().getInterfaces(), interceptor);
+    }
+
     public static <T> T getUIProxy(Object object, Class<?>[] intfs, ProxyInterceptor interceptor) {
         return (T) getProxy(object, intfs, interceptor, false, true);
     }

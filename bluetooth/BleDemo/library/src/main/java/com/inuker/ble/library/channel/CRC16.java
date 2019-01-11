@@ -3,7 +3,7 @@ package com.inuker.ble.library.channel;
 import com.inuker.ble.library.utils.ByteUtils;
 
 /**
- * Created by liwentian on 2017/4/15.
+ * Created by dingjikerbo on 2017/4/15.
  */
 
 public class CRC16 {

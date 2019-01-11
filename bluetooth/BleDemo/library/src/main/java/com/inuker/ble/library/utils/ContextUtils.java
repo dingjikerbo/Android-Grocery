@@ -27,4 +27,13 @@ public class ContextUtils {
         StackTraceElement e = Thread.currentThread().getStackTrace()[4];
         return e.getMethodName();
     }
+
+    public static void assertRuntime(boolean mainThread) {
+        if (mainThread && Looper.myLooper() != Looper.getMainLooper()) {
+            throw new RuntimeException();
+        }
+        if (!mainThread && Looper.myLooper() == Looper.getMainLooper()) {
+            throw new RuntimeException();
+        }
+    }
 }

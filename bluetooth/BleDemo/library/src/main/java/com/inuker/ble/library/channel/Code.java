@@ -1,7 +1,7 @@
 package com.inuker.ble.library.channel;
 
 /**
- * Created by liwentian on 2017/3/20.
+ * Created by dingjikerbo on 2017/3/20.
  */
 
 public class Code {
