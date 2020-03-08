@@ -33,8 +33,8 @@ public class Parser {
         }
         Pdu pdu = new Pdu();
         pdu.type = type & 0xff;
-        pdu.data = new byte[len];
-        System.arraycopy(bytes, start, pdu.data, 0, len);
+        pdu.data = new byte[len - 1];
+        System.arraycopy(bytes, start, pdu.data, 0, len - 1);
         pdus.add(pdu);
         parse(bytes, pdus, end + 1);
     }
